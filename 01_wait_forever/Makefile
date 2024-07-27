@@ -42,6 +42,17 @@ else ifeq ($(BSP),rpi4)
     READELF_BINARY    = aarch64-none-elf-readelf
     LD_SCRIPT_PATH    = $(shell pwd)/src/bsp/raspberrypi
     RUSTC_MISC_ARGS   = -C target-cpu=cortex-a72
+else ifeq ($(BSP),riscv)
+    TARGET            = riscv64gc-unknown-none-elf
+    KERNEL_BIN        = kernel8.img
+    QEMU_BINARY       = qemu-system-riscv64
+    QEMU_MACHINE_TYPE = virt
+    QEMU_RELEASE_ARGS = -d in_asm -display none
+    OBJDUMP_BINARY    = riscv64-none-elf-objdump
+    NM_BINARY         = riscv64-none-elf-nm
+    READELF_BINARY    = riscv64-none-elf-readelf
+    LD_SCRIPT_PATH    = $(shell pwd)/src/bsp/riscv_virt
+    RUSTC_MISC_ARGS   =
 endif
 
 # Export for build.rs.
@@ -153,6 +164,21 @@ else # QEMU is supported.
 qemu: $(KERNEL_BIN)
 	$(call color_header, "Launching QEMU")
 	@$(DOCKER_QEMU) $(EXEC_QEMU) $(QEMU_RELEASE_ARGS) -kernel $(KERNEL_BIN)
+endif
+
+##------------------------------------------------------------------------------
+## Run the kernel in QEMU OUTSIDE of docker
+##------------------------------------------------------------------------------
+ifeq ($(QEMU_MACHINE_TYPE),) # QEMU is not supported for the board.
+
+qemu-native:
+	$(call color_header, "$(QEMU_MISSING_STRING)")
+
+else # QEMU is supported.
+
+qemu-native: $(KERNEL_BIN)
+	$(call color_header, "Launching QEMU")
+	$(EXEC_QEMU) $(QEMU_RELEASE_ARGS) -kernel $(KERNEL_BIN)
 endif
 
 ##------------------------------------------------------------------------------
