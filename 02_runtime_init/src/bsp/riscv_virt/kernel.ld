@@ -1,50 +1,22 @@
-/* SPDX-License-Identifier: MIT OR Apache-2.0
- *
- * Copyright (c) 2018-2022 Andre Richter <andre.o.richter@gmail.com>
- */
+OUTPUT_ARCH( "riscv" )
 
-__qemu_phys_dram_start_addr = 0;
+ENTRY(_start)
 
-/* this is where qemu's -kernel option jumps to */
-__qemu_entry_addr = 0x80000000;
-
-
-ENTRY(__qemu_entry_addr)
-
-/* Flags:
- *     4 == R
- *     5 == RX
- *     6 == RW
- *
- * Segments are marked PT_LOAD below so that the ELF file provides virtual and physical addresses.
- * It doesn't mean all of them need actually be loaded.
- */
+/* Segments are marked PT_LOAD below so that the ELF file provides virtual and physical addresses.
+ * It doesn't mean all of them need actually be loaded. */
 PHDRS
 {
-    segment_boot_core_stack PT_LOAD FLAGS(6);
-    segment_code            PT_LOAD FLAGS(5);
-    segment_data            PT_LOAD FLAGS(6);
+    segment_code            PT_LOAD FLAGS(5); /* 5 = RX */
+    segment_data            PT_LOAD FLAGS(6); /* 6 = RW */
+    segment_boot_core_stack PT_LOAD FLAGS(6); /* 6 = RW */
 }
 
 SECTIONS
 {
-    . =  __qemu_phys_dram_start_addr;
+    /* QEMU's RISC-V virt machine starts execution from this address,
+       which is also the beginning of DRAM in the memory map */
+    . = 0x80000000;
 
-    /***********************************************************************************************
-    * Boot Core Stack
-    ***********************************************************************************************/
-    .boot_core_stack (NOLOAD) :
-    {
-                                             /*   ^             */
-                                             /*   | stack       */
-        . += __qemu_entry_addr;              /*   | growth      */
-                                             /*   | direction   */
-        __boot_core_stack_end_exclusive = .; /*   |             */
-    } :segment_boot_core_stack
-
-    /***********************************************************************************************
-    * Code + RO Data + Global Offset Table
-    ***********************************************************************************************/
     .text :
     {
         KEEP(*(.text._start))
@@ -53,12 +25,13 @@ SECTIONS
         *(.text*)                 /* Everything else */
     } :segment_code
 
-    .rodata : ALIGN(8) { *(.rodata*) } :segment_code
+    .rodata : ALIGN(8) {
+        *(.rodata*)
+    } :segment_code
 
-    /***********************************************************************************************
-    * Data + BSS
-    ***********************************************************************************************/
-    .data : { *(.data*) } :segment_data
+    .data : {
+        *(.data*)
+    } :segment_data
 
     /* Section is zeroed in pairs of u64. Align start and end to 16 bytes */
     .bss (NOLOAD) : ALIGN(16)
@@ -69,11 +42,12 @@ SECTIONS
         __bss_end_exclusive = .;
     } :segment_data
 
-    /***********************************************************************************************
-    * Misc
-    ***********************************************************************************************/
-    .got : { *(.got*) }
-    ASSERT(SIZEOF(.got) == 0, "Relocation support not expected")
-
-    /DISCARD/ : { *(.comment*) }
+    /* Put the boot core stack after everything else with fixed size
+       Stack grows from end to start (higher address to lower address) */
+    .boot_core_stack (NOLOAD) :
+    {
+         __boot_core_stack_start = .;
+        . += 0x80000;
+        __boot_core_stack_end_exclusive = .;
+    } :segment_boot_core_stack
 }
