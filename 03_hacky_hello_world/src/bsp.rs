@@ -9,3 +9,9 @@ mod raspberrypi;
 
 #[cfg(any(feature = "bsp_rpi3", feature = "bsp_rpi4"))]
 pub use raspberrypi::*;
+
+#[cfg(feature = "bsp_riscv")]
+mod riscv_virt;
+
+#[cfg(feature = "bsp_riscv")]
+pub use riscv_virt::*;
