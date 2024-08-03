@@ -11,6 +11,7 @@ lto = true
 default = []
 bsp_rpi3 = []
 bsp_rpi4 = []
+bsp_riscv = []
 
 [[bin]]
 name = "kernel"
